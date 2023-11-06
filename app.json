@@ -10,7 +10,9 @@
       "image": "./assets/splash.png",
       "backgroundColor": "#222222"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -23,9 +25,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "0f1ad9b6-b4ff-4361-bc25-22341bff8f5f"
+        "projectId": "75a93aec-7ff1-4ce6-9dd1-f56057a794e7"
       }
     },
-    "owner": "mkmysa"
+    "owner": "meysadev"
   }
 }

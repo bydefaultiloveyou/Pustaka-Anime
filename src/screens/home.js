@@ -1,34 +1,41 @@
+import * as ScreenOrientation from "expo-screen-orientation";
 import { View, Text, TouchableOpacity } from "react-native";
 import SCREEN from "../configurations/screen";
 import SIZE from "../configurations/size";
 import COLOR from "../configurations/color";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import Kuramanime from "../configurations/kuramanime";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Card from "../components/card";
 import Loading from "../components/loading";
+import database from "../configurations/database";
+import Container from "../components/container";
+import { useFocusEffect } from "@react-navigation/native";
 
 const Home = () => {
-  const [activeScreen, setActiveScreen] = useState("ongoing");
+  const [activeScreen, setActiveScreen] = useState("recent");
   const [animes, setAnimes] = useState([]);
   const [isFetching, setIsFetching] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+      return () => ScreenOrientation.unlockAsync();
+    }, [])
+  );
 
   useEffect(() => {
     setIsFetching(true);
     const fetchAnimes = async () => {
-      const response = await axios.get(
-        Kuramanime.base_url +
-          `/popular?type=${activeScreen}&page=${Math.floor(Math.random() * 5)}`
-      );
-      setAnimes(response.data.list);
+      const response = await axios.get(`${database.base_url}/${activeScreen}`);
+      setAnimes(response.data);
       setIsFetching(false);
     };
     fetchAnimes();
   }, [activeScreen]);
 
   return (
-    <>
+    <Container>
       <View
         style={{
           paddingHorizontal: 20,
@@ -49,7 +56,6 @@ const Home = () => {
         </Text>
       </View>
 
-      {/* navigation tabs */}
       <View
         style={{
           gap: 10,
@@ -58,14 +64,13 @@ const Home = () => {
           flexDirection: "row",
         }}
       >
-        {/* tabs item */}
         <TouchableOpacity
-          onPress={() => setActiveScreen("ongoing")}
+          onPress={() => setActiveScreen("recent")}
           style={{
             height: 30,
-            width: 110,
+            width: 120,
             borderBottomColor: COLOR.white,
-            borderBottomWidth: activeScreen === "ongoing" ? 2 : 0,
+            borderBottomWidth: activeScreen === "recent" ? 2 : 0,
           }}
         >
           <Text
@@ -76,17 +81,17 @@ const Home = () => {
               fontSize: SIZE.small,
             }}
           >
-            Rekomendasi
+            Episode Baru
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => setActiveScreen("movie")}
+          onPress={() => setActiveScreen("animes")}
           style={{
             height: 30,
             width: 70,
             borderBottomColor: COLOR.white,
-            borderBottomWidth: activeScreen === "movie" ? 2 : 0,
+            borderBottomWidth: activeScreen === "animes" ? 2 : 0,
           }}
         >
           <Text
@@ -97,7 +102,7 @@ const Home = () => {
               fontSize: SIZE.small,
             }}
           >
-            Movie
+            Semua
           </Text>
         </TouchableOpacity>
       </View>
@@ -149,7 +154,7 @@ const Home = () => {
                 episode={item.episode}
                 url={item.url}
                 slug={item.slug}
-                screen={activeScreen === "movie" ? "detail" : "stream"}
+                screen={activeScreen === "animes" ? "detail" : "stream"}
               />
             );
           })}
@@ -157,7 +162,7 @@ const Home = () => {
       ) : (
         <Loading />
       )}
-    </>
+    </Container>
   );
 };
 

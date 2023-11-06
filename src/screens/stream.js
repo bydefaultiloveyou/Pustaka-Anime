@@ -1,174 +1,334 @@
-import Container from "../components/container";
-import { ResizeMode, Video } from "expo-av";
-import SCREEN from "../configurations/screen";
-import { Text, Image, View, TouchableOpacity, FlatList } from "react-native";
-import { useEffect, useMemo, useState, useRef } from "react";
-import COLOR from "../configurations/color";
-import { useRoute } from "@react-navigation/native";
-import SIZE from "../configurations/size";
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as ScreenOrientation from "expo-screen-orientation";
 import axios from "axios";
-import Kuramanime from "../configurations/kuramanime";
-import Loading from "../components/loading";
+import {
+  Ionicons,
+  MaterialIcons,
+  AntDesign,
+  FontAwesome,
+} from "@expo/vector-icons";
+import database from "../configurations/database";
+import {
+  ActivityIndicator,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Container from "../components/container";
+import SCREEN from "../configurations/screen";
+import SIZE from "../configurations/size";
+import COLOR from "../configurations/color";
+import { ResizeMode, Video } from "expo-av";
+import SliderBase from "@react-native-community/slider";
 
 const Stream = () => {
-  const route = useRoute();
-  const { episode, slug, title } = route.params;
-  const [videoData, setVideoData] = useState([]);
-  const [EpisodeSelected, setEpisodeSelected] = useState(episode);
+  const [resolution, setResolution] = useState("360");
+  const [urlVideo, setUrlVideo] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
-  const [episodeCount, setEpisodeCount] = useState([]);
+  const [isShow, setIshow] = useState(true);
+  const [videoStatus, setVideoStatus] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [isPlaying, setPlaying] = useState(true);
+  const [sliderValue, setSliderValue] = useState(0);
+  const videoRef = useRef(null);
+  const route = useRoute();
+  const { title, slug, episode } = route.params;
+  const navigation = useNavigation();
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [videoResponse, episodeResponse] = await Promise.all([
-        axios.get(Kuramanime.base_url + `/anime/${slug}/${EpisodeSelected}`),
-        axios.get(Kuramanime.base_url + `/anime/${slug}`),
-      ]);
-
-      setVideoData(videoResponse.data.video);
-
-      const episodeArray = Array.from(
-        { length: episodeResponse.data.episode },
-        (_, index) => index + 1
+    setIsFetching(true);
+    const fetchVideoAnime = async () => {
+      const episodeResponse = await axios.get(
+        `${database.base_url}/anime/${slug}/episode/${episode}`
       );
-      setEpisodeCount(episodeArray);
-      setIsFetching(true);
+      setUrlVideo(await episodeResponse.data.video[resolution]);
+      setIsFetching(false);
     };
+    fetchVideoAnime();
+  }, [slug, resolution, episode]);
 
-    fetchData();
-  }, [slug, EpisodeSelected]);
-
-  const videoUrl = useMemo(() => {
-    const selectedVideo = videoData.find((video) => video.quality === "360p");
-    return selectedVideo ? selectedVideo.url : "";
-  }, [videoData, EpisodeSelected]);
-
-  return (
-    <Container>
-      {isFetching ? (
-        <>
-          {/* video player */}
-          <VideoPlayer url={videoUrl} isFetching={isFetching} />
-          {/* information stream */}
-          <View style={{ padding: 10, width: SCREEN.width, marginBottom: 20 }}>
-            <Text
-              numberOfLines={2}
-              style={{
-                opacity: 0.8,
-                fontSize: SIZE.medium,
-                color: COLOR.white,
-                fontWeight: "500",
-                letterSpacing: 1,
-                marginBottom: 10,
-              }}
-            >
-              {title}
-            </Text>
-            <Text
-              style={{
-                opacity: 0.5,
-                fontSize: SIZE.small,
-                color: COLOR.white,
-                letterSpacing: 1,
-              }}
-            >
-              Episode {EpisodeSelected}
-            </Text>
-
-            {/* show all episode */}
-            <View style={{ marginTop: 20, flexDirection: "row" }}>
-              <FlatList
-                style={{ width: SCREEN.width }}
-                data={episodeCount}
-                showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEpisodeSelected(item);
-                      setIsFetching(false);
-                    }}
-                  >
-                    <BoxEpisode
-                      episode={item}
-                      episodeselected={EpisodeSelected}
-                    />
-                  </TouchableOpacity>
-                )}
-                horizontal
-                keyExtractor={(item) => item.toString()}
-              />
-            </View>
-          </View>
-        </>
-      ) : (
-        <Loading />
-      )}
-    </Container>
+  useFocusEffect(
+    useCallback(() => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      return () => ScreenOrientation.unlockAsync();
+    }, [])
   );
-};
 
-const BoxEpisode = ({ episode, episodeselected }) => {
-  return (
-    <View
-      style={{
-        width: 50,
-        marginRight: 10,
-        height: 50,
-        opacity: 0.7,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor:
-          episode === episodeselected ? COLOR.green : COLOR.blackSecond,
-        borderRadius: 10,
-      }}
-    >
-      <Text
-        style={{
-          color: episode === episodeselected ? "#16FF00" : COLOR.white,
-          fontWeight: "600",
-          opacity: 0.8,
-        }}
-      >
-        {episode}
-      </Text>
-    </View>
-  );
-};
+  const onValueChange = (value) => {
+    setSliderValue(value);
+  };
 
-const VideoPlayer = ({ url }) => {
-  const videoRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const onSlidingComplete = async (value) => {
+    const position = value * videoStatus.durationMillis;
+    if (videoRef.current) {
+      await videoRef.current.setPositionAsync(position);
+      setSliderValue(value);
+    }
+  };
+
+  const onPlaybackStatusUpdate = (status) => {
+    setVideoStatus(status);
+    setSliderValue(status.positionMillis / status.durationMillis);
+  };
+
+  const format = (milis) => {
+    if (videoRef.current) {
+      const totalSecond = milis / 1000;
+      const minutes = Math.floor(totalSecond / 60)
+        .toString()
+        .padStart(2, "0");
+      const seconds = Math.floor(totalSecond % 60)
+        .toString()
+        .padStart(2, "0");
+      return `${minutes}:${seconds}`;
+    } else {
+      return "00:00";
+    }
+  };
+
+  const togglePause = async () => {
+    if (!isPlaying) {
+      await videoRef.current.playAsync();
+    } else {
+      await videoRef.current.pauseAsync();
+    }
+    setPlaying(!isPlaying);
+  };
+
+  const hideControlsAfterTimeout = () => {
+    setTimeout(() => {
+      if (!loading) {
+        setIshow(false);
+      }
+    }, 5000);
+  };
+
+  useEffect(() => {
+    hideControlsAfterTimeout();
+  }, [loading]);
 
   return (
     <>
-      <Video
-        preload={true}
-        resizeMode={ResizeMode.CONTAIN}
-        ref={videoRef}
-        onLoadStart={() => setIsLoading(true)}
-        onLoad={() => setIsLoading(false)}
-        useNativeControls
-        shouldPlay
-        source={{ uri: url }}
-        style={{
-          aspectRatio: 16 / 9,
-          width: SCREEN.width,
-        }}
-      >
-        {isLoading && (
-          <Image
+      <Container color="black">
+        <StatusBar hidden></StatusBar>
+        {isFetching ? (
+          <View
             style={{
-              backgroundColor: COLOR.blackThird,
-              height: 80,
-              width: 80,
+              backgroundColor: "black",
+              height: SCREEN.height,
             }}
-            source={{
-              uri: "https://media.tenor.com/Fo2g7NgHs_EAAAAi/anime.gif",
+          >
+            <View
+              style={{
+                paddingHorizontal: 50,
+                paddingVertical: 25,
+              }}
+            >
+              <ButtonBack />
+            </View>
+            <ActivityIndicator
+              size={52}
+              color={COLOR.greenNoOpacity}
+              style={{ marginTop: "10%" }}
+            />
+          </View>
+        ) : (
+          <View
+            style={{
+              height: SCREEN.height,
+              alignItems: "center",
             }}
-          />
+          >
+            <TouchableOpacity
+              style={{
+                height: SCREEN.width,
+                position: "absolute",
+                width: "100%",
+                alignItems: "center",
+                zIndex: 99999,
+                backgroundColor: "rgba(0,0,0,.5)",
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  paddingHorizontal: 50,
+                  paddingVertical: 25,
+                  justifyContent: "center",
+                }}
+              >
+                <View style={{ width: "60%" }}>
+                  <Text
+                    style={{
+                      color: COLOR.white,
+                      fontWeight: 600,
+                      textAlign: "center",
+                    }}
+                    numberOfLines={1}
+                  >
+                    {title}
+                  </Text>
+                  <Text
+                    style={{
+                      letterSpacing: 0.5,
+                      color: COLOR.white,
+                      textAlign: "center",
+                      opacity: 0.7,
+                    }}
+                  >
+                    Episode {episode}
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={{
+                  paddingHorizontal: 50,
+                  zIndex: 99,
+                  position: "absolute",
+                  bottom: 0,
+                  justifyContent: "center",
+                }}
+              >
+                <View
+                  style={{
+                    justifyContent: "center",
+                    flexDirection: "row",
+                    width: "100%",
+                  }}
+                >
+                  <Text style={{ color: "white" }}>
+                    {format(videoStatus.positionMillis)}
+                  </Text>
+                  <SliderBase
+                    style={{ width: "80%" }}
+                    thumbTintColor={"#22c55e"}
+                    minimumTrackTintColor="#22c55e"
+                    maximumTrackTintColor="white"
+                    value={sliderValue || 0}
+                    minimumValue={0}
+                    maximumValue={1}
+                    step={0.01}
+                    onValueChange={onValueChange}
+                    onSlidingComplete={onSlidingComplete}
+                  ></SliderBase>
+                  <Text style={{ color: "white" }}>
+                    {format(videoStatus.durationMillis)}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    paddingVertical: 15,
+                    justifyContent: "space-evenly",
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <AntDesign
+                      name="caretleft"
+                      size={SIZE.small}
+                      color={COLOR.white}
+                    />
+                    <Text style={{ color: COLOR.white }}>KEMBALI</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Text style={{ color: COLOR.white }}>NEXT EPISODE</Text>
+                    <FontAwesome
+                      name="step-forward"
+                      size={SIZE.small}
+                      color={COLOR.white}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+            <Video
+              ref={videoRef}
+              style={{
+                aspectRatio: 16 / 9,
+                width: "100%",
+                height: SCREEN.width,
+              }}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+              source={{ uri: urlVideo }}
+            />
+          </View>
         )}
-      </Video>
+      </Container>
     </>
+  );
+};
+
+const ButtonBack = () => {
+  const navigation = useNavigation();
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.goBack()}
+      style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+    >
+      <Ionicons name="arrow-back" size={SIZE.large} color={COLOR.white} />
+      <Text
+        style={{ color: COLOR.white, fontSize: SIZE.small, fontWeight: "600" }}
+      >
+        KEMBALI
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+const Header = ({ title }) => {
+  return (
+    <View
+      style={{
+        width: "100%",
+        flexDirection: "row",
+      }}
+    >
+      <ButtonBack />
+      <View style={{ width: "33.33%", height: 80, justifyContent: "center" }}>
+        <Text
+          style={{
+            textAlign: "center",
+            color: "white",
+            fontSize: 12,
+            opacity: 0.8,
+          }}
+        >
+          Pustaka Anime
+        </Text>
+        <Text
+          numberOfLines={2}
+          style={{
+            textAlign: "center",
+            color: "white",
+            fontWeight: "500",
+          }}
+        >
+          {title}
+        </Text>
+      </View>
+    </View>
   );
 };
 

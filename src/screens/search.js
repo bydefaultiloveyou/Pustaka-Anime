@@ -4,7 +4,7 @@ import COLOR from "../configurations/color";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Kuramanime from "../configurations/kuramanime";
+import Kuramanime from "../configurations/database";
 import Card from "../components/card";
 import Loading from "../components/loading";
 

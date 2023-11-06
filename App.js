@@ -1,8 +1,8 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import Stream from "./src/screens/stream";
 import Main from "./src/components/main";
 import Detail from "./src/screens/detail";
+import Stream from "./src/screens/stream";
 
 const Stack = createNativeStackNavigator();
 

@@ -3,13 +3,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SCREEN from "../configurations/screen";
 import COLOR from "../configurations/color";
 
-const Container = ({ children }) => {
+const Container = ({ children, color = COLOR.black }) => {
   return (
     <SafeAreaView
       style={{
         height: SCREEN.height,
-        width: SCREEN.height,
-        backgroundColor: COLOR.black,
+        backgroundColor: color,
       }}
     >
       <ScrollView>

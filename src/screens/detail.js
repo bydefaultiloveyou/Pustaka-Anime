@@ -14,7 +14,7 @@ import SIZE from "../configurations/size";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Kuramanime from "../configurations/kuramanime";
+import Kuramanime from "../configurations/database";
 import Loading from "../components/loading";
 import { Linking } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
